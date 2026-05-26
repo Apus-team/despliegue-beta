@@ -1,0 +1,1584 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Despliegue CNN - MNIST y Fashion-MNIST</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: linear-gradient(135deg, #eef2ff, #fdf2f8, #f8fafc);
+      color: #0f172a;
+    }
+
+    .container {
+      width: 94%;
+      max-width: 1200px;
+      margin: auto;
+      padding: 30px 0;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #0f172a, #2563eb, #7c3aed, #ec4899);
+      color: white;
+      border-radius: 30px;
+      padding: 38px;
+      margin-bottom: 28px;
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.22);
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: 44px;
+      line-height: 1;
+    }
+
+    .hero p {
+      font-size: 17px;
+      line-height: 1.6;
+      max-width: 900px;
+      color: rgba(255,255,255,0.9);
+    }
+
+    .menu {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin-bottom: 28px;
+    }
+
+    .menu a {
+      text-decoration: none;
+      background: white;
+      color: #0f172a;
+      padding: 20px;
+      border-radius: 22px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+      font-weight: bold;
+      display: block;
+      text-align: center;
+    }
+
+    .apartado {
+      margin-bottom: 45px;
+      scroll-margin-top: 20px;
+    }
+
+    .titulo-apartado {
+      background: #0f172a;
+      color: white;
+      padding: 24px;
+      border-radius: 26px;
+      margin-bottom: 22px;
+    }
+
+    .titulo-apartado h2 {
+      margin: 0;
+      font-size: 32px;
+    }
+
+    .titulo-apartado p {
+      margin-bottom: 0;
+      color: rgba(255,255,255,0.85);
+      line-height: 1.6;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 25px;
+      align-items: start;
+    }
+
+    .card {
+      background: white;
+      border-radius: 26px;
+      padding: 24px;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.10);
+      border: 1px solid #e2e8f0;
+      margin-bottom: 20px;
+    }
+
+    .card h3 {
+      margin-top: 0;
+      font-size: 26px;
+    }
+
+    .card p {
+      color: #64748b;
+      line-height: 1.6;
+    }
+
+    button {
+      border: none;
+      border-radius: 999px;
+      padding: 13px 18px;
+      font-weight: bold;
+      cursor: pointer;
+      margin: 6px;
+      font-size: 14px;
+      transition: 0.2s ease;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+    }
+
+    .btn-main {
+      background: linear-gradient(135deg, #7c3aed, #ec4899);
+      color: white;
+      box-shadow: 0 10px 25px rgba(124, 58, 237, 0.25);
+    }
+
+    .btn-blue {
+      background: linear-gradient(135deg, #2563eb, #7c3aed);
+      color: white;
+      box-shadow: 0 10px 25px rgba(37, 99, 235, 0.25);
+    }
+
+    .btn-green {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .btn-gray {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
+
+    .btn-red {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    input[type="file"] {
+      width: 100%;
+      margin: 10px 0 16px;
+      padding: 14px;
+      border-radius: 16px;
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+    }
+
+    .canvas-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin-top: 18px;
+    }
+
+    .canvas-box {
+      text-align: center;
+      background: #f8fafc;
+      border: 1px dashed #cbd5e1;
+      border-radius: 20px;
+      padding: 15px;
+    }
+
+    .canvas-box h4 {
+      margin-top: 0;
+      font-size: 17px;
+    }
+
+    canvas {
+      border: 1px solid #cbd5e1;
+      border-radius: 16px;
+      max-width: 100%;
+    }
+
+    #fashionCanvasProcesado,
+    #mnistCanvasPreview {
+      image-rendering: pixelated;
+      background: black;
+    }
+
+    #mnistCanvasDraw {
+      background: black;
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    .status {
+      margin-top: 15px;
+      padding: 14px;
+      border-radius: 16px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1e40af;
+      font-weight: bold;
+      line-height: 1.5;
+    }
+
+    .status.ok {
+      background: #dcfce7;
+      color: #166534;
+      border-color: #86efac;
+    }
+
+    .status.error {
+      background: #fee2e2;
+      color: #991b1b;
+      border-color: #fecaca;
+    }
+
+    .resultado {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 20px;
+      align-items: center;
+      background: linear-gradient(135deg, #fdf2f8, #eef2ff);
+      border: 1px solid #ddd6fe;
+      border-radius: 24px;
+      padding: 22px;
+    }
+
+    .resultado.numero {
+      background: linear-gradient(135deg, #eff6ff, #faf5ff);
+    }
+
+    .icono {
+      width: 120px;
+      height: 120px;
+      background: white;
+      border-radius: 30px;
+      display: grid;
+      place-items: center;
+      font-size: 62px;
+      box-shadow: 0 12px 25px rgba(124, 58, 237, 0.18);
+    }
+
+    .titulo {
+      font-size: 34px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .confianza {
+      color: #64748b;
+      margin-top: 8px;
+      font-weight: bold;
+    }
+
+    .bar-row {
+      margin-bottom: 12px;
+    }
+
+    .bar-top {
+      display: flex;
+      justify-content: space-between;
+      font-weight: bold;
+      font-size: 14px;
+      margin-bottom: 5px;
+    }
+
+    .bar {
+      height: 14px;
+      background: #e5e7eb;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .bar span {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #7c3aed, #ec4899);
+      border-radius: 999px;
+      transition: width 0.5s ease;
+    }
+
+    .bar.blue span {
+      background: linear-gradient(90deg, #2563eb, #7c3aed);
+    }
+
+    .tips {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 18px;
+      padding: 18px;
+      line-height: 1.6;
+      color: #475569;
+      margin-top: 20px;
+    }
+
+    .clases {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .clase-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 18px;
+      padding: 14px;
+      text-align: center;
+    }
+
+    .clase-card span {
+      font-size: 34px;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .clase-card b {
+      font-size: 13px;
+    }
+
+    @media (max-width: 900px) {
+      .menu,
+      .grid,
+      .canvas-grid,
+      .resultado {
+        grid-template-columns: 1fr;
+      }
+
+      .icono {
+        margin: auto;
+      }
+
+      .resultado {
+        text-align: center;
+      }
+
+      .clases {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <section class="hero">
+    <h1>Despliegue CNN: MNIST y Fashion-MNIST</h1>
+    <p>
+      Esta página une dos apartados: uno para detectar prendas con Fashion-MNIST
+      usando imagen externa, y otro para detectar números del 0 al 9 usando MNIST.
+    </p>
+  </section>
+
+  <div class="menu">
+    <a href="#apartado-prendas">👕 Ir al detector de prendas Fashion-MNIST</a>
+    <a href="#apartado-numeros">🔢 Ir al detector de números MNIST</a>
+  </div>
+
+  <!-- APARTADO 1: FASHION-MNIST -->
+  <section class="apartado" id="apartado-prendas">
+
+    <div class="titulo-apartado">
+      <h2>APARTADO 1: Detección de prendas con Fashion-MNIST</h2>
+      <p>
+        Este apartado permite subir una imagen externa de una prenda o calzado.
+        El sistema la convierte a escala de grises, la reduce a 28×28 píxeles
+        y la clasifica en una de las 10 clases de Fashion-MNIST.
+      </p>
+    </div>
+
+    <div class="grid">
+
+      <section class="card">
+        <h3>Imagen externa</h3>
+
+        <button class="btn-green" onclick="fashionEntrenarModelo()">1. Entrenar Fashion-MNIST</button>
+        <button class="btn-main" onclick="fashionPredecir()">2. Detectar imagen</button>
+        <button class="btn-gray" onclick="fashionPreprocesarImagen()">Ver preprocesamiento</button>
+        <button class="btn-red" onclick="fashionLimpiar()">Limpiar</button>
+
+        <input type="file" id="fashionFileInput" accept="image/*">
+
+        <div class="canvas-grid">
+          <div class="canvas-box">
+            <h4>Imagen subida</h4>
+            <canvas id="fashionCanvasOriginal" width="280" height="280"></canvas>
+          </div>
+
+          <div class="canvas-box">
+            <h4>Entrada Fashion-MNIST 28×28</h4>
+            <canvas id="fashionCanvasProcesado" width="280" height="280"></canvas>
+          </div>
+        </div>
+
+        <div id="fashionStatus" class="status">
+          Estado: primero presiona “Entrenar Fashion-MNIST”.
+        </div>
+      </section>
+
+      <section class="card">
+        <h3>Resultado de prenda</h3>
+
+        <div class="resultado">
+          <div class="icono" id="fashionPredIcon">?</div>
+          <div>
+            <div class="titulo" id="fashionPredText">Sin predicción</div>
+            <div class="confianza" id="fashionPredConf">Confianza: --</div>
+          </div>
+        </div>
+
+        <div id="fashionBars" style="margin-top:22px;"></div>
+
+        <div class="tips">
+          <b>Importante:</b><br>
+          Fashion-MNIST funciona mejor con imágenes tipo silueta, fondo limpio
+          y una sola prenda centrada. Si usas fotos reales muy complejas, puede confundirse.
+        </div>
+      </section>
+
+    </div>
+
+    <section class="card">
+      <h3>Clases de Fashion-MNIST</h3>
+
+      <div class="clases">
+        <div class="clase-card"><span>👕</span><b>Camiseta / Top</b></div>
+        <div class="clase-card"><span>👖</span><b>Pantalón</b></div>
+        <div class="clase-card"><span>🧥</span><b>Suéter</b></div>
+        <div class="clase-card"><span>👗</span><b>Vestido</b></div>
+        <div class="clase-card"><span>🥼</span><b>Abrigo</b></div>
+        <div class="clase-card"><span>👡</span><b>Sandalia</b></div>
+        <div class="clase-card"><span>👚</span><b>Camisa</b></div>
+        <div class="clase-card"><span>👟</span><b>Zapatilla</b></div>
+        <div class="clase-card"><span>👜</span><b>Bolso</b></div>
+        <div class="clase-card"><span>🥾</span><b>Botín</b></div>
+      </div>
+    </section>
+
+  </section>
+
+  <!-- APARTADO 2: MNIST -->
+  <section class="apartado" id="apartado-numeros">
+
+    <div class="titulo-apartado">
+      <h2>APARTADO 2: Detección de números con MNIST</h2>
+      <p>
+        Este apartado permite dibujar o subir una imagen de un número del 0 al 9.
+        El sistema recorta, centra, transforma a 28×28 píxeles y usa una CNN entrenada con MNIST.
+      </p>
+    </div>
+
+    <div class="grid">
+
+      <section class="card">
+        <h3>Entrada del número</h3>
+
+        <button class="btn-green" onclick="mnistEntrenarModelo()">1. Entrenar modelo MNIST</button>
+        <button class="btn-blue" onclick="mnistPredecir()">2. Predecir número</button>
+        <button class="btn-gray" onclick="mnistPreprocesarImagen()">Ver preprocesamiento</button>
+        <button class="btn-red" onclick="mnistLimpiar()">Limpiar</button>
+
+        <input type="file" id="mnistFileInput" accept="image/*">
+
+        <div class="canvas-grid">
+          <div class="canvas-box">
+            <h4>Dibuja o sube imagen</h4>
+            <canvas id="mnistCanvasDraw" width="280" height="280"></canvas>
+          </div>
+
+          <div class="canvas-box">
+            <h4>Imagen procesada 28×28</h4>
+            <canvas id="mnistCanvasPreview" width="280" height="280"></canvas>
+          </div>
+        </div>
+
+        <div id="mnistStatus" class="status">
+          Estado: primero presiona “Entrenar modelo MNIST”.
+        </div>
+      </section>
+
+      <section class="card">
+        <h3>Resultado del número</h3>
+
+        <div class="resultado numero">
+          <div class="icono" id="mnistPredNumber">?</div>
+          <div>
+            <div class="titulo" id="mnistPredText">Sin predicción</div>
+            <div class="confianza" id="mnistPredConf">Confianza: --</div>
+          </div>
+        </div>
+
+        <div id="mnistBars" style="margin-top:22px;"></div>
+
+        <div class="tips">
+          <b>Consejos para que reconozca mejor:</b><br>
+          Dibuja el número grande, centrado y con trazo grueso. Para imagen subida,
+          usa una imagen clara con un solo número.
+        </div>
+      </section>
+
+    </div>
+
+  </section>
+
+</div>
+
+<script>
+  /***********************
+   * APARTADO FASHION-MNIST
+   ***********************/
+  let fashionModel = null;
+  let fashionImagenCargada = false;
+
+  const FASHION_IMAGE_SIZE = 784;
+  const FASHION_NUM_CLASSES = 10;
+  const FASHION_NUM_TRAIN_ELEMENTS = 16000;
+
+  const FASHION_TRAIN_IMAGES_URL =
+    "https://raw.githubusercontent.com/zalandoresearch/fashion-mnist/master/data/fashion/train-images-idx3-ubyte.gz";
+
+  const FASHION_TRAIN_LABELS_URL =
+    "https://raw.githubusercontent.com/zalandoresearch/fashion-mnist/master/data/fashion/train-labels-idx1-ubyte.gz";
+
+  const fashionClassNames = [
+    "Camiseta / Top",
+    "Pantalón",
+    "Suéter",
+    "Vestido",
+    "Abrigo",
+    "Sandalia",
+    "Camisa",
+    "Zapatilla",
+    "Bolso",
+    "Botín"
+  ];
+
+  const fashionClassIcons = [
+    "👕",
+    "👖",
+    "🧥",
+    "👗",
+    "🥼",
+    "👡",
+    "👚",
+    "👟",
+    "👜",
+    "🥾"
+  ];
+
+  const fashionCanvasOriginal = document.getElementById("fashionCanvasOriginal");
+  const fashionCtxOriginal = fashionCanvasOriginal.getContext("2d");
+
+  const fashionCanvasProcesado = document.getElementById("fashionCanvasProcesado");
+  const fashionCtxProcesado = fashionCanvasProcesado.getContext("2d");
+
+  iniciarFashion();
+
+  function iniciarFashion() {
+    fashionCtxOriginal.fillStyle = "white";
+    fashionCtxOriginal.fillRect(0, 0, 280, 280);
+
+    fashionCtxProcesado.fillStyle = "black";
+    fashionCtxProcesado.fillRect(0, 0, 280, 280);
+
+    document.getElementById("fashionFileInput").addEventListener("change", fashionCargarImagen);
+    fashionCargarModeloGuardado();
+  }
+
+  function fashionSetStatus(text, type = "") {
+    const status = document.getElementById("fashionStatus");
+    status.className = "status " + type;
+    status.innerHTML = text;
+  }
+
+  async function fashionCargarModeloGuardado() {
+    try {
+      fashionModel = await tf.loadLayersModel("localstorage://fashion-mnist-externo");
+      fashionSetStatus("Modelo Fashion-MNIST guardado cargado correctamente. Ya puedes subir imagen.", "ok");
+    } catch (e) {
+      fashionSetStatus("Estado: primero presiona “Entrenar Fashion-MNIST”.");
+    }
+  }
+
+  function fashionCargarImagen(e) {
+    const file = e.target.files[0];
+
+    if (!file) return;
+
+    const img = new Image();
+
+    img.onload = function () {
+      fashionCtxOriginal.fillStyle = "white";
+      fashionCtxOriginal.fillRect(0, 0, 280, 280);
+
+      const scale = Math.min(260 / img.width, 260 / img.height);
+      const w = img.width * scale;
+      const h = img.height * scale;
+      const x = (280 - w) / 2;
+      const y = (280 - h) / 2;
+
+      fashionCtxOriginal.drawImage(img, x, y, w, h);
+
+      fashionImagenCargada = true;
+
+      fashionPreprocesarImagen();
+
+      fashionSetStatus("Imagen cargada correctamente. Ahora presiona <b>Detectar imagen</b>.", "ok");
+    };
+
+    img.src = URL.createObjectURL(file);
+  }
+
+  function fashionLimpiar() {
+    fashionCtxOriginal.fillStyle = "white";
+    fashionCtxOriginal.fillRect(0, 0, 280, 280);
+
+    fashionCtxProcesado.fillStyle = "black";
+    fashionCtxProcesado.fillRect(0, 0, 280, 280);
+
+    fashionImagenCargada = false;
+
+    document.getElementById("fashionFileInput").value = "";
+    document.getElementById("fashionPredIcon").textContent = "?";
+    document.getElementById("fashionPredText").textContent = "Sin predicción";
+    document.getElementById("fashionPredConf").textContent = "Confianza: --";
+    document.getElementById("fashionBars").innerHTML = "";
+
+    fashionSetStatus("Pantalla limpia. Puedes subir otra imagen.", "ok");
+  }
+
+  function fashionPreprocesarImagen() {
+    const temp = document.createElement("canvas");
+    temp.width = 280;
+    temp.height = 280;
+
+    const tctx = temp.getContext("2d");
+    tctx.drawImage(fashionCanvasOriginal, 0, 0);
+
+    let imgData = tctx.getImageData(0, 0, 280, 280);
+    let data = imgData.data;
+
+    let esquinas = [];
+
+    for (let y = 0; y < 35; y++) {
+      for (let x = 0; x < 35; x++) {
+        esquinas.push(fashionGrayAt(data, x, y, 280));
+        esquinas.push(fashionGrayAt(data, 279 - x, y, 280));
+        esquinas.push(fashionGrayAt(data, x, 279 - y, 280));
+        esquinas.push(fashionGrayAt(data, 279 - x, 279 - y, 280));
+      }
+    }
+
+    const fondoPromedio =
+      esquinas.reduce((a, b) => a + b, 0) / esquinas.length;
+
+    let minX = 280;
+    let minY = 280;
+    let maxX = 0;
+    let maxY = 0;
+    let found = false;
+
+    for (let y = 0; y < 280; y++) {
+      for (let x = 0; x < 280; x++) {
+        const i = (y * 280 + x) * 4;
+
+        let g =
+          0.299 * data[i] +
+          0.587 * data[i + 1] +
+          0.114 * data[i + 2];
+
+        g = Math.abs(g - fondoPromedio) * 2.1;
+
+        if (g < 25) g = 0;
+        if (g > 255) g = 255;
+
+        data[i] = g;
+        data[i + 1] = g;
+        data[i + 2] = g;
+        data[i + 3] = 255;
+
+        if (g > 35) {
+          found = true;
+
+          if (x < minX) minX = x;
+          if (y < minY) minY = y;
+          if (x > maxX) maxX = x;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+
+    tctx.putImageData(imgData, 0, 0);
+
+    const output = document.createElement("canvas");
+    output.width = 28;
+    output.height = 28;
+
+    const octx = output.getContext("2d");
+    octx.fillStyle = "black";
+    octx.fillRect(0, 0, 28, 28);
+
+    if (!found) {
+      fashionMostrarProcesado(output);
+      return output;
+    }
+
+    const pad = 18;
+
+    minX = Math.max(0, minX - pad);
+    minY = Math.max(0, minY - pad);
+    maxX = Math.min(279, maxX + pad);
+    maxY = Math.min(279, maxY + pad);
+
+    const boxW = maxX - minX + 1;
+    const boxH = maxY - minY + 1;
+
+    const scale = 24 / Math.max(boxW, boxH);
+    const newW = boxW * scale;
+    const newH = boxH * scale;
+
+    const dx = (28 - newW) / 2;
+    const dy = (28 - newH) / 2;
+
+    octx.drawImage(
+      temp,
+      minX,
+      minY,
+      boxW,
+      boxH,
+      dx,
+      dy,
+      newW,
+      newH
+    );
+
+    fashionCentrar(output);
+    fashionMostrarProcesado(output);
+
+    return output;
+  }
+
+  function fashionGrayAt(data, x, y, width) {
+    const i = (y * width + x) * 4;
+
+    return (
+      0.299 * data[i] +
+      0.587 * data[i + 1] +
+      0.114 * data[i + 2]
+    );
+  }
+
+  function fashionCentrar(canvas) {
+    const c = canvas.getContext("2d");
+    const img = c.getImageData(0, 0, 28, 28);
+    const data = img.data;
+
+    let sum = 0;
+    let cx = 0;
+    let cy = 0;
+
+    for (let y = 0; y < 28; y++) {
+      for (let x = 0; x < 28; x++) {
+        const i = (y * 28 + x) * 4;
+        const v = data[i] / 255;
+
+        sum += v;
+        cx += x * v;
+        cy += y * v;
+      }
+    }
+
+    if (sum === 0) return;
+
+    cx = cx / sum;
+    cy = cy / sum;
+
+    const shiftX = Math.round(14 - cx);
+    const shiftY = Math.round(14 - cy);
+
+    const copy = document.createElement("canvas");
+    copy.width = 28;
+    copy.height = 28;
+    copy.getContext("2d").drawImage(canvas, 0, 0);
+
+    c.fillStyle = "black";
+    c.fillRect(0, 0, 28, 28);
+    c.drawImage(copy, shiftX, shiftY);
+  }
+
+  function fashionMostrarProcesado(smallCanvas) {
+    fashionCtxProcesado.imageSmoothingEnabled = false;
+    fashionCtxProcesado.fillStyle = "black";
+    fashionCtxProcesado.fillRect(0, 0, 280, 280);
+    fashionCtxProcesado.drawImage(smallCanvas, 0, 0, 280, 280);
+  }
+
+  function fashionObtenerTensor() {
+    const small = fashionPreprocesarImagen();
+    const sctx = small.getContext("2d");
+    const img = sctx.getImageData(0, 0, 28, 28);
+    const data = img.data;
+
+    let pixels = [];
+
+    for (let i = 0; i < data.length; i += 4) {
+      pixels.push(data[i] / 255);
+    }
+
+    return tf.tensor4d(pixels, [1, 28, 28, 1]);
+  }
+
+  async function fashionEntrenarModelo() {
+    try {
+      fashionSetStatus("Descargando Fashion-MNIST y entrenando modelo. Espera unos minutos...");
+
+      await tf.setBackend("webgl");
+      await tf.ready();
+
+      const data = await fashionCargarFashionMNIST(FASHION_NUM_TRAIN_ELEMENTS);
+
+      fashionModel = tf.sequential();
+
+      fashionModel.add(tf.layers.conv2d({
+        inputShape: [28, 28, 1],
+        filters: 32,
+        kernelSize: 3,
+        activation: "relu"
+      }));
+
+      fashionModel.add(tf.layers.maxPooling2d({
+        poolSize: 2,
+        strides: 2
+      }));
+
+      fashionModel.add(tf.layers.conv2d({
+        filters: 64,
+        kernelSize: 3,
+        activation: "relu"
+      }));
+
+      fashionModel.add(tf.layers.maxPooling2d({
+        poolSize: 2,
+        strides: 2
+      }));
+
+      fashionModel.add(tf.layers.flatten());
+
+      fashionModel.add(tf.layers.dense({
+        units: 128,
+        activation: "relu"
+      }));
+
+      fashionModel.add(tf.layers.dropout({
+        rate: 0.25
+      }));
+
+      fashionModel.add(tf.layers.dense({
+        units: 10,
+        activation: "softmax"
+      }));
+
+      fashionModel.compile({
+        optimizer: tf.train.adam(0.001),
+        loss: "categoricalCrossentropy",
+        metrics: ["accuracy"]
+      });
+
+      const xs = tf.tensor4d(
+        data.images,
+        [data.count, 28, 28, 1]
+      );
+
+      const ys = tf.tensor2d(
+        data.labels,
+        [data.count, FASHION_NUM_CLASSES]
+      );
+
+      await fashionModel.fit(xs, ys, {
+        epochs: 7,
+        batchSize: 128,
+        validationSplit: 0.15,
+        callbacks: {
+          onEpochEnd: async function(epoch, logs) {
+            const acc = logs.acc || logs.accuracy;
+            const valAcc = logs.val_acc || logs.val_accuracy;
+
+            fashionSetStatus(
+              `Entrenando época ${epoch + 1}/7 | Accuracy: ${acc.toFixed(4)} | Val Accuracy: ${valAcc.toFixed(4)} | Loss: ${logs.loss.toFixed(4)}`
+            );
+
+            await tf.nextFrame();
+          }
+        }
+      });
+
+      xs.dispose();
+      ys.dispose();
+
+      await fashionModel.save("localstorage://fashion-mnist-externo");
+
+      fashionSetStatus(
+        "Modelo Fashion-MNIST entrenado y guardado correctamente. Ahora sube una imagen externa.",
+        "ok"
+      );
+
+    } catch (error) {
+      console.error(error);
+
+      fashionSetStatus(
+        "Error al entrenar. Revisa tu conexión a internet y vuelve a intentar.",
+        "error"
+      );
+    }
+  }
+
+  async function fashionPredecir() {
+    if (!fashionModel) {
+      fashionSetStatus("Primero debes presionar <b>Entrenar Fashion-MNIST</b>.", "error");
+      return;
+    }
+
+    if (!fashionImagenCargada) {
+      fashionSetStatus("Primero sube una imagen externa.", "error");
+      return;
+    }
+
+    const tensor = fashionObtenerTensor();
+
+    const pred = fashionModel.predict(tensor);
+    const probs = Array.from(await pred.data());
+
+    tensor.dispose();
+    pred.dispose();
+
+    fashionMostrarResultado(probs);
+  }
+
+  function fashionMostrarResultado(probs) {
+    const max = Math.max(...probs);
+    const index = probs.indexOf(max);
+
+    document.getElementById("fashionPredIcon").textContent = fashionClassIcons[index];
+    document.getElementById("fashionPredText").textContent = fashionClassNames[index];
+    document.getElementById("fashionPredConf").textContent =
+      "Confianza: " + (max * 100).toFixed(2) + "%";
+
+    const bars = document.getElementById("fashionBars");
+    bars.innerHTML = "";
+
+    probs
+      .map((p, i) => ({
+        label: fashionClassNames[i],
+        icon: fashionClassIcons[i],
+        value: p
+      }))
+      .sort((a, b) => b.value - a.value)
+      .forEach(item => {
+        const percent = item.value * 100;
+
+        const div = document.createElement("div");
+        div.className = "bar-row";
+
+        div.innerHTML = `
+          <div class="bar-top">
+            <span>${item.icon} ${item.label}</span>
+            <span>${percent.toFixed(2)}%</span>
+          </div>
+          <div class="bar">
+            <span style="width:${percent}%"></span>
+          </div>
+        `;
+
+        bars.appendChild(div);
+      });
+  }
+
+  async function fashionDescargarGzip(url) {
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error("No se pudo descargar: " + url);
+    }
+
+    const buffer = await response.arrayBuffer();
+
+    return pako.ungzip(new Uint8Array(buffer));
+  }
+
+  async function fashionCargarFashionMNIST(maxItems) {
+    const imageBytes = await fashionDescargarGzip(FASHION_TRAIN_IMAGES_URL);
+    const labelBytes = await fashionDescargarGzip(FASHION_TRAIN_LABELS_URL);
+
+    const imageView = new DataView(
+      imageBytes.buffer,
+      imageBytes.byteOffset,
+      imageBytes.byteLength
+    );
+
+    const labelView = new DataView(
+      labelBytes.buffer,
+      labelBytes.byteOffset,
+      labelBytes.byteLength
+    );
+
+    const totalImages = imageView.getUint32(4, false);
+    const rows = imageView.getUint32(8, false);
+    const cols = imageView.getUint32(12, false);
+
+    const totalLabels = labelView.getUint32(4, false);
+
+    const count = Math.min(maxItems, totalImages, totalLabels);
+
+    const images = new Float32Array(count * rows * cols);
+    const labels = new Float32Array(count * FASHION_NUM_CLASSES);
+
+    const imageOffset = 16;
+    const labelOffset = 8;
+
+    for (let i = 0; i < count; i++) {
+      for (let j = 0; j < rows * cols; j++) {
+        images[i * rows * cols + j] =
+          imageBytes[imageOffset + i * rows * cols + j] / 255;
+      }
+
+      const label = labelBytes[labelOffset + i];
+      labels[i * FASHION_NUM_CLASSES + label] = 1;
+    }
+
+    return {
+      images,
+      labels,
+      count
+    };
+  }
+
+  /***********************
+   * APARTADO MNIST
+   ***********************/
+  let mnistModel = null;
+  let mnistIsDrawing = false;
+
+  const MNIST_IMAGE_SIZE = 784;
+  const MNIST_NUM_CLASSES = 10;
+  const MNIST_NUM_DATASET_ELEMENTS = 65000;
+  const MNIST_NUM_TRAIN_ELEMENTS = 12000;
+
+  const MNIST_IMAGES_PATH =
+    "https://storage.googleapis.com/learnjs-data/model-builder/mnist_images.png";
+
+  const MNIST_LABELS_PATH =
+    "https://storage.googleapis.com/learnjs-data/model-builder/mnist_labels_uint8";
+
+  const mnistCanvasDraw = document.getElementById("mnistCanvasDraw");
+  const mnistCtxDraw = mnistCanvasDraw.getContext("2d");
+
+  const mnistCanvasPreview = document.getElementById("mnistCanvasPreview");
+  const mnistCtxPreview = mnistCanvasPreview.getContext("2d");
+
+  iniciarMNIST();
+
+  function iniciarMNIST() {
+    mnistCtxDraw.fillStyle = "black";
+    mnistCtxDraw.fillRect(0, 0, 280, 280);
+
+    mnistCtxDraw.lineWidth = 24;
+    mnistCtxDraw.lineCap = "round";
+    mnistCtxDraw.lineJoin = "round";
+    mnistCtxDraw.strokeStyle = "white";
+
+    mnistCtxPreview.fillStyle = "black";
+    mnistCtxPreview.fillRect(0, 0, 280, 280);
+
+    mnistCanvasDraw.addEventListener("mousedown", mnistStartDraw);
+    mnistCanvasDraw.addEventListener("mousemove", mnistDraw);
+    mnistCanvasDraw.addEventListener("mouseup", mnistStopDraw);
+    mnistCanvasDraw.addEventListener("mouseleave", mnistStopDraw);
+
+    mnistCanvasDraw.addEventListener("touchstart", mnistStartTouch, { passive: false });
+    mnistCanvasDraw.addEventListener("touchmove", mnistMoveTouch, { passive: false });
+    mnistCanvasDraw.addEventListener("touchend", mnistStopDraw);
+
+    document.getElementById("mnistFileInput").addEventListener("change", mnistCargarImagen);
+    mnistCargarModeloGuardado();
+  }
+
+  function mnistSetStatus(text, type = "") {
+    const status = document.getElementById("mnistStatus");
+    status.className = "status " + type;
+    status.innerHTML = text;
+  }
+
+  async function mnistCargarModeloGuardado() {
+    try {
+      mnistModel = await tf.loadLayersModel("localstorage://mnist-cnn-local");
+      mnistSetStatus("Modelo MNIST guardado cargado correctamente. Ya puedes dibujar o subir una imagen.", "ok");
+    } catch (e) {
+      mnistSetStatus("Estado: primero presiona “Entrenar modelo MNIST”.");
+    }
+  }
+
+  function mnistStartDraw(e) {
+    mnistIsDrawing = true;
+    mnistCtxDraw.beginPath();
+    mnistCtxDraw.moveTo(e.offsetX, e.offsetY);
+  }
+
+  function mnistDraw(e) {
+    if (!mnistIsDrawing) return;
+    mnistCtxDraw.lineTo(e.offsetX, e.offsetY);
+    mnistCtxDraw.stroke();
+  }
+
+  function mnistStopDraw() {
+    mnistIsDrawing = false;
+    mnistPreprocesarImagen();
+  }
+
+  function mnistStartTouch(e) {
+    e.preventDefault();
+    const rect = mnistCanvasDraw.getBoundingClientRect();
+    const touch = e.touches[0];
+
+    mnistIsDrawing = true;
+    mnistCtxDraw.beginPath();
+    mnistCtxDraw.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
+  }
+
+  function mnistMoveTouch(e) {
+    e.preventDefault();
+    if (!mnistIsDrawing) return;
+
+    const rect = mnistCanvasDraw.getBoundingClientRect();
+    const touch = e.touches[0];
+
+    mnistCtxDraw.lineTo(touch.clientX - rect.left, touch.clientY - rect.top);
+    mnistCtxDraw.stroke();
+  }
+
+  function mnistCargarImagen(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const img = new Image();
+
+    img.onload = function () {
+      mnistCtxDraw.fillStyle = "white";
+      mnistCtxDraw.fillRect(0, 0, 280, 280);
+
+      const scale = Math.min(260 / img.width, 260 / img.height);
+      const w = img.width * scale;
+      const h = img.height * scale;
+      const x = (280 - w) / 2;
+      const y = (280 - h) / 2;
+
+      mnistCtxDraw.drawImage(img, x, y, w, h);
+
+      mnistPreprocesarImagen();
+
+      mnistSetStatus("Imagen cargada correctamente. Ahora presiona <b>Predecir número</b>.", "ok");
+    };
+
+    img.src = URL.createObjectURL(file);
+  }
+
+  function mnistLimpiar() {
+    mnistCtxDraw.fillStyle = "black";
+    mnistCtxDraw.fillRect(0, 0, 280, 280);
+
+    mnistCtxPreview.fillStyle = "black";
+    mnistCtxPreview.fillRect(0, 0, 280, 280);
+
+    document.getElementById("mnistFileInput").value = "";
+    document.getElementById("mnistPredNumber").textContent = "?";
+    document.getElementById("mnistPredText").textContent = "Sin predicción";
+    document.getElementById("mnistPredConf").textContent = "Confianza: --";
+    document.getElementById("mnistBars").innerHTML = "";
+
+    mnistSetStatus("Lienzo limpio. Puedes dibujar o subir otra imagen.", "ok");
+  }
+
+  function mnistPreprocesarImagen() {
+    const temp = document.createElement("canvas");
+    temp.width = 280;
+    temp.height = 280;
+    const tctx = temp.getContext("2d");
+
+    tctx.drawImage(mnistCanvasDraw, 0, 0);
+
+    let imgData = tctx.getImageData(0, 0, 280, 280);
+    let data = imgData.data;
+
+    let cornerValues = [];
+
+    for (let y = 0; y < 35; y++) {
+      for (let x = 0; x < 35; x++) {
+        cornerValues.push(mnistGrayAt(data, x, y, 280));
+        cornerValues.push(mnistGrayAt(data, 279 - x, y, 280));
+        cornerValues.push(mnistGrayAt(data, x, 279 - y, 280));
+        cornerValues.push(mnistGrayAt(data, 279 - x, 279 - y, 280));
+      }
+    }
+
+    const bg =
+      cornerValues.reduce((a, b) => a + b, 0) / cornerValues.length;
+
+    const fondoClaro = bg > 120;
+
+    let minX = 280;
+    let minY = 280;
+    let maxX = 0;
+    let maxY = 0;
+    let found = false;
+
+    for (let y = 0; y < 280; y++) {
+      for (let x = 0; x < 280; x++) {
+        const i = (y * 280 + x) * 4;
+
+        let g =
+          0.299 * data[i] +
+          0.587 * data[i + 1] +
+          0.114 * data[i + 2];
+
+        if (fondoClaro) {
+          g = 255 - g;
+        }
+
+        if (g < 40) g = 0;
+        if (g > 255) g = 255;
+
+        data[i] = g;
+        data[i + 1] = g;
+        data[i + 2] = g;
+        data[i + 3] = 255;
+
+        if (g > 45) {
+          found = true;
+          if (x < minX) minX = x;
+          if (y < minY) minY = y;
+          if (x > maxX) maxX = x;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+
+    tctx.putImageData(imgData, 0, 0);
+
+    const output = document.createElement("canvas");
+    output.width = 28;
+    output.height = 28;
+    const octx = output.getContext("2d");
+
+    octx.fillStyle = "black";
+    octx.fillRect(0, 0, 28, 28);
+
+    if (!found) {
+      mnistMostrarPreview(output);
+      return output;
+    }
+
+    const pad = 15;
+
+    minX = Math.max(0, minX - pad);
+    minY = Math.max(0, minY - pad);
+    maxX = Math.min(279, maxX + pad);
+    maxY = Math.min(279, maxY + pad);
+
+    const boxW = maxX - minX + 1;
+    const boxH = maxY - minY + 1;
+
+    const scale = 20 / Math.max(boxW, boxH);
+    const newW = boxW * scale;
+    const newH = boxH * scale;
+
+    const dx = (28 - newW) / 2;
+    const dy = (28 - newH) / 2;
+
+    octx.drawImage(
+      temp,
+      minX,
+      minY,
+      boxW,
+      boxH,
+      dx,
+      dy,
+      newW,
+      newH
+    );
+
+    mnistCentrar(output);
+    mnistMostrarPreview(output);
+
+    return output;
+  }
+
+  function mnistGrayAt(data, x, y, width) {
+    const i = (y * width + x) * 4;
+    return (
+      0.299 * data[i] +
+      0.587 * data[i + 1] +
+      0.114 * data[i + 2]
+    );
+  }
+
+  function mnistCentrar(canvas) {
+    const c = canvas.getContext("2d");
+    const img = c.getImageData(0, 0, 28, 28);
+    const data = img.data;
+
+    let sum = 0;
+    let cx = 0;
+    let cy = 0;
+
+    for (let y = 0; y < 28; y++) {
+      for (let x = 0; x < 28; x++) {
+        const i = (y * 28 + x) * 4;
+        const v = data[i] / 255;
+
+        sum += v;
+        cx += x * v;
+        cy += y * v;
+      }
+    }
+
+    if (sum === 0) return;
+
+    cx = cx / sum;
+    cy = cy / sum;
+
+    const shiftX = Math.round(14 - cx);
+    const shiftY = Math.round(14 - cy);
+
+    const copy = document.createElement("canvas");
+    copy.width = 28;
+    copy.height = 28;
+    copy.getContext("2d").drawImage(canvas, 0, 0);
+
+    c.fillStyle = "black";
+    c.fillRect(0, 0, 28, 28);
+    c.drawImage(copy, shiftX, shiftY);
+  }
+
+  function mnistMostrarPreview(smallCanvas) {
+    mnistCtxPreview.imageSmoothingEnabled = false;
+    mnistCtxPreview.fillStyle = "black";
+    mnistCtxPreview.fillRect(0, 0, 280, 280);
+    mnistCtxPreview.drawImage(smallCanvas, 0, 0, 280, 280);
+  }
+
+  function mnistObtenerTensor() {
+    const small = mnistPreprocesarImagen();
+    const sctx = small.getContext("2d");
+    const img = sctx.getImageData(0, 0, 28, 28);
+    const data = img.data;
+
+    let pixels = [];
+
+    for (let i = 0; i < data.length; i += 4) {
+      pixels.push(data[i] / 255);
+    }
+
+    return tf.tensor4d(pixels, [1, 28, 28, 1]);
+  }
+
+  async function mnistEntrenarModelo() {
+    mnistSetStatus("Descargando MNIST y entrenando modelo. Espera unos minutos...");
+
+    try {
+      await tf.setBackend("webgl");
+      await tf.ready();
+
+      const data = await mnistCargarMNIST();
+
+      mnistModel = tf.sequential();
+
+      mnistModel.add(tf.layers.conv2d({
+        inputShape: [28, 28, 1],
+        filters: 16,
+        kernelSize: 3,
+        activation: "relu"
+      }));
+
+      mnistModel.add(tf.layers.maxPooling2d({
+        poolSize: 2,
+        strides: 2
+      }));
+
+      mnistModel.add(tf.layers.conv2d({
+        filters: 32,
+        kernelSize: 3,
+        activation: "relu"
+      }));
+
+      mnistModel.add(tf.layers.maxPooling2d({
+        poolSize: 2,
+        strides: 2
+      }));
+
+      mnistModel.add(tf.layers.flatten());
+
+      mnistModel.add(tf.layers.dense({
+        units: 64,
+        activation: "relu"
+      }));
+
+      mnistModel.add(tf.layers.dense({
+        units: 10,
+        activation: "softmax"
+      }));
+
+      mnistModel.compile({
+        optimizer: tf.train.adam(0.001),
+        loss: "categoricalCrossentropy",
+        metrics: ["accuracy"]
+      });
+
+      const xs = tf.tensor4d(
+        data.images.slice(0, MNIST_NUM_TRAIN_ELEMENTS * MNIST_IMAGE_SIZE),
+        [MNIST_NUM_TRAIN_ELEMENTS, 28, 28, 1]
+      );
+
+      const ys = tf.tensor2d(
+        data.labels.slice(0, MNIST_NUM_TRAIN_ELEMENTS * MNIST_NUM_CLASSES),
+        [MNIST_NUM_TRAIN_ELEMENTS, MNIST_NUM_CLASSES]
+      );
+
+      await mnistModel.fit(xs, ys, {
+        epochs: 5,
+        batchSize: 128,
+        validationSplit: 0.15,
+        callbacks: {
+          onEpochEnd: async function(epoch, logs) {
+            const acc = logs.acc || logs.accuracy;
+            mnistSetStatus(
+              `Entrenando época ${epoch + 1}/5 | Accuracy: ${acc.toFixed(4)} | Loss: ${logs.loss.toFixed(4)}`
+            );
+            await tf.nextFrame();
+          }
+        }
+      });
+
+      xs.dispose();
+      ys.dispose();
+
+      await mnistModel.save("localstorage://mnist-cnn-local");
+
+      mnistSetStatus("Modelo MNIST entrenado y guardado correctamente. Ahora dibuja o sube una imagen y presiona Predecir.", "ok");
+
+    } catch (error) {
+      console.error(error);
+      mnistSetStatus("Error al entrenar MNIST. Revisa tu conexión a internet y vuelve a intentar.", "error");
+    }
+  }
+
+  async function mnistPredecir() {
+    if (!mnistModel) {
+      mnistSetStatus("Primero debes presionar <b>Entrenar modelo MNIST</b>.", "error");
+      return;
+    }
+
+    const tensor = mnistObtenerTensor();
+
+    const pred = mnistModel.predict(tensor);
+    const probs = Array.from(await pred.data());
+
+    tensor.dispose();
+    pred.dispose();
+
+    mnistMostrarResultado(probs);
+  }
+
+  function mnistMostrarResultado(probs) {
+    const max = Math.max(...probs);
+    const index = probs.indexOf(max);
+
+    document.getElementById("mnistPredNumber").textContent = index;
+    document.getElementById("mnistPredText").textContent = "Número " + index;
+    document.getElementById("mnistPredConf").textContent =
+      "Confianza: " + (max * 100).toFixed(2) + "%";
+
+    const bars = document.getElementById("mnistBars");
+    bars.innerHTML = "";
+
+    probs
+      .map((p, i) => ({ number: i, value: p }))
+      .sort((a, b) => b.value - a.value)
+      .forEach(item => {
+        const percent = item.value * 100;
+
+        const div = document.createElement("div");
+        div.className = "bar-row";
+
+        div.innerHTML = `
+          <div class="bar-top">
+            <span>Número ${item.number}</span>
+            <span>${percent.toFixed(2)}%</span>
+          </div>
+          <div class="bar blue">
+            <span style="width:${percent}%"></span>
+          </div>
+        `;
+
+        bars.appendChild(div);
+      });
+  }
+
+  async function mnistCargarMNIST() {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = MNIST_IMAGES_PATH;
+
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
+    });
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+
+    const datasetBytesBuffer =
+      new ArrayBuffer(MNIST_NUM_DATASET_ELEMENTS * MNIST_IMAGE_SIZE * 4);
+
+    const datasetBytesView = new Float32Array(datasetBytesBuffer);
+
+    const chunkSize = 5000;
+
+    canvas.width = img.width;
+    canvas.height = chunkSize;
+
+    for (let i = 0; i < MNIST_NUM_DATASET_ELEMENTS / chunkSize; i++) {
+      const datasetBytesViewChunk = datasetBytesView.subarray(
+        i * MNIST_IMAGE_SIZE * chunkSize,
+        (i + 1) * MNIST_IMAGE_SIZE * chunkSize
+      );
+
+      ctx.drawImage(
+        img,
+        0,
+        i * chunkSize,
+        img.width,
+        chunkSize,
+        0,
+        0,
+        img.width,
+        chunkSize
+      );
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+      for (let j = 0; j < imageData.data.length / 4; j++) {
+        datasetBytesViewChunk[j] = imageData.data[j * 4] / 255;
+      }
+    }
+
+    const labelsResponse = await fetch(MNIST_LABELS_PATH);
+    const labels = new Uint8Array(await labelsResponse.arrayBuffer());
+
+    return {
+      images: datasetBytesView,
+      labels: labels
+    };
+  }
+</script>
+
+</body>
+</html>
